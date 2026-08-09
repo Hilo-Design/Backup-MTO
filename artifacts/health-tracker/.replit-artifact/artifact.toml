@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Health & Nutrition Tracker"
+description = "A mobile-first personal health and nutrition tracking app. Lets the user log meals by text and photo, confirm portions, and track daily metrics (calories, protein, carbs, fat, fiber, water, weight, steps, workout, sleep, reflux, energy, stress, etc). Shows a daily dashboard with progress rings, a meal timeline, a decision assistant for meal guidance, a health profile for lab values, weekly trends, and CSV export."
+version = "1.0.0"
+id = "artifacts/health-tracker"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24166
+
+[services.development]
+run = "pnpm --filter @workspace/health-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/health-tracker", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/health-tracker/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24166"
+BASE_PATH = "/"

@@ -1,0 +1,1275 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Health & Nutrition Tracker API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: daily-logs
+    description: Daily health log entries
+  - name: meals
+    description: Meal entries and food items
+  - name: food-items
+    description: Food items within meals
+  - name: profile
+    description: Health profile and lab values
+  - name: targets
+    description: Daily nutrition targets
+  - name: advisor
+    description: Decision assistant
+  - name: trends
+    description: Weekly trends
+  - name: dashboard
+    description: Dashboard summaries
+  - name: export
+    description: Data export
+  - name: plan
+    description: User plan and subscription
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /daily-logs:
+    get:
+      operationId: getDailyLogs
+      tags: [daily-logs]
+      summary: List daily logs
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 30
+      responses:
+        "200":
+          description: List of daily logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyLog"
+    post:
+      operationId: createDailyLog
+      tags: [daily-logs]
+      summary: Create or upsert a daily log
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyLogInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyLog"
+
+  /daily-logs/{date}:
+    get:
+      operationId: getDailyLog
+      tags: [daily-logs]
+      summary: Get daily log by date (YYYY-MM-DD)
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daily log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyLog"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateDailyLog
+      tags: [daily-logs]
+      summary: Update a daily log by date
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyLogUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyLog"
+    delete:
+      operationId: deleteDailyLog
+      tags: [daily-logs]
+      summary: Delete a daily log
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /meals:
+    get:
+      operationId: getMeals
+      tags: [meals]
+      summary: List meals for a date
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of meals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Meal"
+    post:
+      operationId: createMeal
+      tags: [meals]
+      summary: Log a meal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MealInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+
+  /log/parse:
+    post:
+      operationId: parseLogText
+      tags: [log]
+      summary: Parse natural-language text into a proposed log entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogParseInput"
+      responses:
+        "200":
+          description: Proposed structured log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogProposal"
+
+  /log/voice:
+    post:
+      operationId: parseLogVoice
+      tags: [log]
+      summary: Transcribe a voice note and parse it into a proposed log entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogVoiceInput"
+      responses:
+        "200":
+          description: Proposed structured log with transcript
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogProposal"
+
+  /import/excel:
+    post:
+      operationId: importExcel
+      tags: [import]
+      summary: Import historical health data from an Excel/CSV file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExcelImportInput"
+      responses:
+        "200":
+          description: Import summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExcelImportResult"
+
+  /meals/analyze-photo:
+    post:
+      operationId: analyzeMealPhoto
+      tags: [meals]
+      summary: Analyze a meal photo with AI and return suggested food items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MealPhotoAnalysisInput"
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MealPhotoAnalysis"
+
+  /meals/{id}:
+    get:
+      operationId: getMeal
+      tags: [meals]
+      summary: Get a meal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Meal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+    patch:
+      operationId: updateMeal
+      tags: [meals]
+      summary: Update a meal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MealUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+    delete:
+      operationId: deleteMeal
+      tags: [meals]
+      summary: Delete a meal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /food-items:
+    post:
+      operationId: createFoodItem
+      tags: [food-items]
+      summary: Add a food item to a meal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoodItemInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoodItem"
+
+  /food-items/{id}:
+    patch:
+      operationId: updateFoodItem
+      tags: [food-items]
+      summary: Update a food item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoodItemUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoodItem"
+    delete:
+      operationId: deleteFoodItem
+      tags: [food-items]
+      summary: Delete a food item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /health-profile:
+    get:
+      operationId: getHealthProfile
+      tags: [profile]
+      summary: Get health profile and lab values
+      responses:
+        "200":
+          description: Health profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthProfile"
+    put:
+      operationId: upsertHealthProfile
+      tags: [profile]
+      summary: Create or update health profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthProfileInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthProfile"
+
+  /targets:
+    get:
+      operationId: getTargets
+      tags: [targets]
+      summary: Get daily nutrition targets
+      responses:
+        "200":
+          description: Daily targets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Targets"
+    put:
+      operationId: updateTargets
+      tags: [targets]
+      summary: Update daily nutrition targets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TargetsInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Targets"
+
+  /advisor/check:
+    post:
+      operationId: advisorCheck
+      tags: [advisor]
+      summary: Rules-based meal guidance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdvisorQuery"
+      responses:
+        "200":
+          description: Advisor response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdvisorResponse"
+
+  /trends/weekly:
+    get:
+      operationId: getWeeklyTrends
+      tags: [trends]
+      summary: Weekly trends for key metrics
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: weeks
+          in: query
+          schema:
+            type: number
+            default: 8
+      responses:
+        "200":
+          description: Weekly trends
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyTrends"
+
+  /dashboard/today:
+    get:
+      operationId: getDashboardToday
+      tags: [dashboard]
+      summary: Today's dashboard — progress, meals, key metrics
+      responses:
+        "200":
+          description: Today dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardToday"
+
+  /dashboard/streak:
+    get:
+      operationId: getDashboardStreak
+      tags: [dashboard]
+      summary: Logging streak and recent activity
+      responses:
+        "200":
+          description: Streak info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreakInfo"
+
+  /export/daily-logs:
+    get:
+      operationId: exportDailyLogs
+      tags: [export]
+      summary: Export daily logs as CSV
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /export/meals:
+    get:
+      operationId: exportMealLogs
+      tags: [export]
+      summary: Export meal logs as CSV
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /plan:
+    get:
+      operationId: getPlan
+      tags: [plan]
+      summary: Get current user plan and usage
+      responses:
+        "200":
+          description: Plan info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanInfo"
+    put:
+      operationId: updatePlan
+      tags: [plan]
+      summary: Update plan (beta toggle or upgrade intent)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanUpdate"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanInfo"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    DailyLog:
+      type: object
+      required: [id, date]
+      properties:
+        id:
+          type: number
+        date:
+          type: string
+        calories:
+          type: ["number", "null"]
+        protein:
+          type: ["number", "null"]
+        carbs:
+          type: ["number", "null"]
+        fat:
+          type: ["number", "null"]
+        fiber:
+          type: ["number", "null"]
+        water:
+          type: ["number", "null"]
+        weight:
+          type: ["number", "null"]
+        steps:
+          type: ["number", "null"]
+        workoutMinutes:
+          type: ["number", "null"]
+        workoutType:
+          type: ["string", "null"]
+        sleepHours:
+          type: ["number", "null"]
+        reflux:
+          type: ["number", "null"]
+        postMealSleepiness:
+          type: ["number", "null"]
+        energy:
+          type: ["number", "null"]
+        headache:
+          type: ["number", "null"]
+        stress:
+          type: ["number", "null"]
+        bowelMovement:
+          type: ["string", "null"]
+        hungerBeforeLunch:
+          type: ["number", "null"]
+        hungerBeforeDinner:
+          type: ["number", "null"]
+        hungerBeforeBed:
+          type: ["number", "null"]
+        muscleStiffness:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    DailyLogInput:
+      type: object
+      required: [date]
+      properties:
+        date:
+          type: string
+        calories:
+          type: ["number", "null"]
+        protein:
+          type: ["number", "null"]
+        carbs:
+          type: ["number", "null"]
+        fat:
+          type: ["number", "null"]
+        fiber:
+          type: ["number", "null"]
+        water:
+          type: ["number", "null"]
+        weight:
+          type: ["number", "null"]
+        steps:
+          type: ["number", "null"]
+        workoutMinutes:
+          type: ["number", "null"]
+        workoutType:
+          type: ["string", "null"]
+        sleepHours:
+          type: ["number", "null"]
+        reflux:
+          type: ["number", "null"]
+        postMealSleepiness:
+          type: ["number", "null"]
+        energy:
+          type: ["number", "null"]
+        headache:
+          type: ["number", "null"]
+        stress:
+          type: ["number", "null"]
+        bowelMovement:
+          type: ["string", "null"]
+        hungerBeforeLunch:
+          type: ["number", "null"]
+        hungerBeforeDinner:
+          type: ["number", "null"]
+        hungerBeforeBed:
+          type: ["number", "null"]
+        muscleStiffness:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    DailyLogUpdate:
+      type: object
+      properties:
+        calories:
+          type: ["number", "null"]
+        protein:
+          type: ["number", "null"]
+        carbs:
+          type: ["number", "null"]
+        fat:
+          type: ["number", "null"]
+        fiber:
+          type: ["number", "null"]
+        water:
+          type: ["number", "null"]
+        weight:
+          type: ["number", "null"]
+        steps:
+          type: ["number", "null"]
+        workoutMinutes:
+          type: ["number", "null"]
+        workoutType:
+          type: ["string", "null"]
+        sleepHours:
+          type: ["number", "null"]
+        reflux:
+          type: ["number", "null"]
+        postMealSleepiness:
+          type: ["number", "null"]
+        energy:
+          type: ["number", "null"]
+        headache:
+          type: ["number", "null"]
+        stress:
+          type: ["number", "null"]
+        bowelMovement:
+          type: ["string", "null"]
+        hungerBeforeLunch:
+          type: ["number", "null"]
+        hungerBeforeDinner:
+          type: ["number", "null"]
+        hungerBeforeBed:
+          type: ["number", "null"]
+        muscleStiffness:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    Meal:
+      type: object
+      required: [id, date, mealType]
+      properties:
+        id:
+          type: number
+        date:
+          type: string
+        mealType:
+          type: string
+        time:
+          type: ["string", "null"]
+        totalCalories:
+          type: ["number", "null"]
+        totalProtein:
+          type: ["number", "null"]
+        totalCarbs:
+          type: ["number", "null"]
+        totalFat:
+          type: ["number", "null"]
+        totalFiber:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        postMealSleepiness:
+          type: ["number", "null"]
+        foodItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/FoodItem"
+        createdAt:
+          type: string
+
+    MealInput:
+      type: object
+      required: [date, mealType]
+      properties:
+        date:
+          type: string
+        mealType:
+          type: string
+        time:
+          type: ["string", "null"]
+        totalCalories:
+          type: ["number", "null"]
+        totalProtein:
+          type: ["number", "null"]
+        totalCarbs:
+          type: ["number", "null"]
+        totalFat:
+          type: ["number", "null"]
+        totalFiber:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        postMealSleepiness:
+          type: ["number", "null"]
+        foodItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/FoodItemInput"
+
+    MealUpdate:
+      type: object
+      properties:
+        mealType:
+          type: ["string", "null"]
+        time:
+          type: ["string", "null"]
+        totalCalories:
+          type: ["number", "null"]
+        totalProtein:
+          type: ["number", "null"]
+        totalCarbs:
+          type: ["number", "null"]
+        totalFat:
+          type: ["number", "null"]
+        totalFiber:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        postMealSleepiness:
+          type: ["number", "null"]
+
+    LogParseInput:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+
+    LogVoiceInput:
+      type: object
+      required: [audioBase64]
+      properties:
+        audioBase64:
+          type: string
+        mimeType:
+          type: ["string", "null"]
+
+    LogProposal:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          description: One of meal, daily, both, none
+        transcript:
+          type: ["string", "null"]
+        message:
+          type: ["string", "null"]
+        meal:
+          oneOf:
+            - $ref: "#/components/schemas/MealPhotoAnalysis"
+            - type: "null"
+        dailyLogPatch:
+          oneOf:
+            - $ref: "#/components/schemas/DailyLogUpdate"
+            - type: "null"
+        date:
+          type: ["string", "null"]
+
+    ExcelImportInput:
+      type: object
+      required: [fileBase64]
+      properties:
+        fileBase64:
+          type: string
+        fileName:
+          type: ["string", "null"]
+
+    ExcelImportResult:
+      type: object
+      required: [dailyLogsImported, mealsImported, skippedRows]
+      properties:
+        dailyLogsImported:
+          type: number
+        mealsImported:
+          type: number
+        skippedRows:
+          type: number
+        warnings:
+          type: array
+          items:
+            type: string
+
+    MealPhotoAnalysisInput:
+      type: object
+      required: [imageBase64]
+      properties:
+        imageBase64:
+          type: string
+          description: Base64-encoded image data (no data URL prefix)
+        mediaType:
+          type: ["string", "null"]
+          description: Image MIME type, e.g. image/jpeg
+
+    MealPhotoAnalysis:
+      type: object
+      required: [dishName, foodItems]
+      properties:
+        dishName:
+          type: string
+        mealType:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        totalCalories:
+          type: ["number", "null"]
+        totalProtein:
+          type: ["number", "null"]
+        totalCarbs:
+          type: ["number", "null"]
+        totalFat:
+          type: ["number", "null"]
+        totalFiber:
+          type: ["number", "null"]
+        foodItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyzedFoodItem"
+
+    AnalyzedFoodItem:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        portion:
+          type: ["number", "null"]
+        unit:
+          type: ["string", "null"]
+        calories:
+          type: ["number", "null"]
+        protein:
+          type: ["number", "null"]
+        carbs:
+          type: ["number", "null"]
+        fat:
+          type: ["number", "null"]
+        fiber:
+          type: ["number", "null"]
+
+    FoodItem:
+      type: object
+      required: [id, mealId, name]
+      properties:
+        id:
+          type: number
+        mealId:
+          type: number
+        name:
+          type: string
+        portion:
+          type: ["number", "null"]
+        unit:
+          type: ["string", "null"]
+        calories:
+          type: ["number", "null"]
+        protein:
+          type: ["number", "null"]
+        carbs:
+          type: ["number", "null"]
+        fat:
+          type: ["number", "null"]
+        fiber:
+          type: ["number", "null"]
+
+    FoodItemInput:
+      type: object
+      required: [mealId, name]
+      properties:
+        mealId:
+          type: number
+        name:
+          type: string
+        portion:
+          type: ["number", "null"]
+        unit:
+          type: ["string", "null"]
+        calories:
+          type: ["number", "null"]
+        protein:
+          type: ["number", "null"]
+        carbs:
+          type: ["number", "null"]
+        fat:
+          type: ["number", "null"]
+        fiber:
+          type: ["number", "null"]
+
+    FoodItemUpdate:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        portion:
+          type: ["number", "null"]
+        unit:
+          type: ["string", "null"]
+        calories:
+          type: ["number", "null"]
+        protein:
+          type: ["number", "null"]
+        carbs:
+          type: ["number", "null"]
+        fat:
+          type: ["number", "null"]
+        fiber:
+          type: ["number", "null"]
+
+    HealthProfile:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: number
+        ferritin:
+          type: ["number", "null"]
+        hemoglobin:
+          type: ["number", "null"]
+        vitaminB12:
+          type: ["number", "null"]
+        vitaminD:
+          type: ["number", "null"]
+        hba1c:
+          type: ["number", "null"]
+        totalCholesterol:
+          type: ["number", "null"]
+        ldl:
+          type: ["number", "null"]
+        hdl:
+          type: ["number", "null"]
+        triglycerides:
+          type: ["number", "null"]
+        labDate:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+
+    HealthProfileInput:
+      type: object
+      properties:
+        ferritin:
+          type: ["number", "null"]
+        hemoglobin:
+          type: ["number", "null"]
+        vitaminB12:
+          type: ["number", "null"]
+        vitaminD:
+          type: ["number", "null"]
+        hba1c:
+          type: ["number", "null"]
+        totalCholesterol:
+          type: ["number", "null"]
+        ldl:
+          type: ["number", "null"]
+        hdl:
+          type: ["number", "null"]
+        triglycerides:
+          type: ["number", "null"]
+        labDate:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+
+    Targets:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: number
+        caloriesTarget:
+          type: number
+        proteinTarget:
+          type: number
+        carbsTarget:
+          type: number
+        fatTarget:
+          type: ["number", "null"]
+        fiberTarget:
+          type: number
+        waterTarget:
+          type: number
+        stepsTarget:
+          type: ["number", "null"]
+        updatedAt:
+          type: string
+
+    TargetsInput:
+      type: object
+      properties:
+        caloriesTarget:
+          type: number
+        proteinTarget:
+          type: number
+        carbsTarget:
+          type: number
+        fatTarget:
+          type: ["number", "null"]
+        fiberTarget:
+          type: number
+        waterTarget:
+          type: number
+        stepsTarget:
+          type: ["number", "null"]
+
+    AdvisorQuery:
+      type: object
+      required: [question, date]
+      properties:
+        question:
+          type: string
+        date:
+          type: string
+        foodName:
+          type: ["string", "null"]
+        portionDescription:
+          type: ["string", "null"]
+        estimatedCalories:
+          type: ["number", "null"]
+        estimatedProtein:
+          type: ["number", "null"]
+        estimatedCarbs:
+          type: ["number", "null"]
+        estimatedFiber:
+          type: ["number", "null"]
+
+    AdvisorResponse:
+      type: object
+      required: [decision, explanation, tips]
+      properties:
+        decision:
+          type: string
+        explanation:
+          type: string
+        remainingCalories:
+          type: ["number", "null"]
+        remainingProtein:
+          type: ["number", "null"]
+        remainingCarbs:
+          type: ["number", "null"]
+        remainingFiber:
+          type: ["number", "null"]
+        remainingWater:
+          type: ["number", "null"]
+        tips:
+          type: array
+          items:
+            type: string
+
+    WeeklyTrendPoint:
+      type: object
+      required: [weekStart, daysLogged]
+      properties:
+        weekStart:
+          type: string
+        avgCalories:
+          type: ["number", "null"]
+        avgProtein:
+          type: ["number", "null"]
+        avgCarbs:
+          type: ["number", "null"]
+        avgFiber:
+          type: ["number", "null"]
+        avgWater:
+          type: ["number", "null"]
+        avgWeight:
+          type: ["number", "null"]
+        avgSteps:
+          type: ["number", "null"]
+        avgEnergy:
+          type: ["number", "null"]
+        avgReflux:
+          type: ["number", "null"]
+        bowelMovementCount:
+          type: ["number", "null"]
+        daysLogged:
+          type: number
+
+    WeeklyTrends:
+      type: object
+      required: [weeks]
+      properties:
+        weeks:
+          type: array
+          items:
+            $ref: "#/components/schemas/WeeklyTrendPoint"
+
+    MacroProgress:
+      type: object
+      required: [consumed, target, remaining, pct]
+      properties:
+        consumed:
+          type: number
+        target:
+          type: number
+        remaining:
+          type: number
+        pct:
+          type: number
+
+    DashboardToday:
+      type: object
+      required: [date, meals]
+      properties:
+        date:
+          type: string
+        dailyLog:
+          $ref: "#/components/schemas/DailyLog"
+        targets:
+          $ref: "#/components/schemas/Targets"
+        meals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Meal"
+        calories:
+          $ref: "#/components/schemas/MacroProgress"
+        protein:
+          $ref: "#/components/schemas/MacroProgress"
+        carbs:
+          $ref: "#/components/schemas/MacroProgress"
+        fiber:
+          $ref: "#/components/schemas/MacroProgress"
+        water:
+          $ref: "#/components/schemas/MacroProgress"
+        streak:
+          type: number
+
+    StreakInfo:
+      type: object
+      required: [currentStreak, longestStreak, totalDaysLogged]
+      properties:
+        currentStreak:
+          type: number
+        longestStreak:
+          type: number
+        totalDaysLogged:
+          type: number
+        lastLoggedDate:
+          type: ["string", "null"]
+
+    PlanInfo:
+      type: object
+      required: [plan, advisorUsageThisMonth, advisorMonthlyLimit, betaProAccess]
+      properties:
+        plan:
+          type: string
+          description: "free or pro"
+        advisorUsageThisMonth:
+          type: number
+        advisorMonthlyLimit:
+          type: number
+        betaProAccess:
+          type: boolean
+        renewalDate:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+
+    PlanUpdate:
+      type: object
+      properties:
+        plan:
+          type: ["string", "null"]
+        betaProAccess:
+          type: ["boolean", "null"]

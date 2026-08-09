@@ -1,0 +1,5 @@
+- [Per-user data model](per-user-data.md) — all tables carry user_id (default 'seed-user' for pre-auth rows); every route must scope by req.userId; food_items ownership via parent meal.
+- [Plan entitlements & AI quota](plan-entitlements.md) — plan/betaProAccess are never client-writable (PUT /plan returns 403); free AI quota is check-before / commit-after-success.
+- [OpenAPI codegen rules](openapi-rules.md) — always `type: number` never `integer` (Orval/Zod v3); run api-spec codegen then typecheck:libs after spec/schema changes.
+- [Stripe integration field names](stripe-credentials.md) — Replit Stripe connection exposes `settings.secret` not `settings.secret_key`; also check `settings.publishable` for the publishable key.
+- [stripe-replit-sync backfill](stripe-sync-quirks.md) — syncBackfill() runs but may not populate stripe.products for sandbox accounts; query Stripe API directly for product/price data instead of relying on the synced stripe.* tables.

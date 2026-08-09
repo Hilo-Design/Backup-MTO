@@ -1,0 +1,7 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="60" cy="60" r="56" fill="#1A5C4C"/>
+  <circle cx="60" cy="60" r="56" stroke="#F5A623" stroke-width="3"/>
+  <path d="M60 26c-9 12-22 18-22 34a22 22 0 0 0 44 0c0-16-13-22-22-34z" fill="#FAF7F0"/>
+  <path d="M60 42c-5 7-12 10-12 19a12 12 0 0 0 24 0c0-9-7-12-12-19z" fill="#F5A623"/>
+  <text x="60" y="106" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#FAF7F0" font-weight="bold">Svasth</text>
+</svg>
