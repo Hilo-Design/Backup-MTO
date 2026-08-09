@@ -48,15 +48,30 @@ class SupabaseService {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
-  /// meals.photo_url is NOT NULL, so upload before inserting the row.
+  /// Uploads into the private `meal_photos` bucket under `<userId>/`, which is
+  /// what the storage RLS policies key off. Returns the object path, not a URL
+  /// — a private bucket has no public URL. `meals.photo_url` stores this path.
+  ///
+  /// `meals.photo_url` is NOT NULL, so upload before inserting the row.
   Future<String> uploadMealPhoto(String userId, File photo) async {
     final path = '$userId/${DateTime.now().millisecondsSinceEpoch}.jpg';
     await client.storage.from('meal_photos').upload(path, photo);
-    return client.storage.from('meal_photos').getPublicUrl(path);
+    return path;
   }
 
-  Future<void> saveMeal(String userId, Map<String, dynamic> data) async {
-    await client.from('meals').insert({'user_id': userId, ...data});
+  /// Time-limited URL for displaying a stored meal photo. Defaults to one hour.
+  Future<String> signedPhotoUrl(String path, {int expiresIn = 3600}) {
+    return client.storage.from('meal_photos').createSignedUrl(path, expiresIn);
+  }
+
+  /// Returns the new meal's id, which `AiService.analyzeMealPhoto` needs.
+  Future<String> saveMeal(String userId, Map<String, dynamic> data) async {
+    final row = await client
+        .from('meals')
+        .insert({'user_id': userId, ...data})
+        .select('id')
+        .single();
+    return row['id'] as String;
   }
 
   // ----------------------------------------------------------- health profiles

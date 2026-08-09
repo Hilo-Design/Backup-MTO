@@ -12,7 +12,7 @@ import 'screens/home/dashboard_screen.dart';
 const String supabaseUrl = 'https://jaynfestjiidkfwbhbhw.supabase.co';
 
 /// Paste the anon (public) key from Supabase -> Settings -> API.
-const String supabaseAnonKey = 'YOUR_ANON_KEY_HERE';
+const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpheW5mZXN0amlpZGtmd2JoYmh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyOTkyMzMsImV4cCI6MjEwMTg3NTIzM30.eRPEXO38En-nKNFR4EFmNs2rUqm0MAkVlMELA27u9vU';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

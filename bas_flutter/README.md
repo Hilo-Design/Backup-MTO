@@ -27,11 +27,16 @@ In `lib/main.dart`, replace `YOUR_ANON_KEY_HERE` with the anon (public) key from
 the Supabase dashboard → Settings → API. The anon key is safe in a client app;
 row-level security is what protects the data. Never put the service-role key here.
 
-**3. Create the storage bucket**
+**3. Storage — already set up**
 
-Meal photos upload to a bucket named `meal_photos`. Create it in the Supabase
-dashboard → Storage, and add policies allowing authenticated users to read and
-write their own folder. Meal logging will fail until this exists.
+The `meal_photos` bucket exists and is **private**, capped at 10MB per file and
+limited to jpeg/png/webp/heic. Four RLS policies on `storage.objects` restrict
+every operation to objects under `<auth.uid()>/`, so a signed-in user can only
+touch their own photos.
+
+Because the bucket is private there is no public URL. `uploadMealPhoto` returns
+the object *path*, which is what `meals.photo_url` stores. To display a photo,
+call `signedPhotoUrl(path)` for a time-limited link (one hour by default).
 
 **4. Install and run**
 
@@ -64,10 +69,56 @@ lib/
 - Every table has RLS enabled. Policies key off `auth.uid() = user_id`, so the
   user must be signed in for any read or write to return rows.
 
+## Edge Functions (Claude)
+
+Five functions are deployed to the Bas project. Source lives in
+`supabase/functions/`, shared helpers in `supabase/functions/_shared/`.
+
+| Function | Body | Effect |
+|---|---|---|
+| `analyze-meal-photo` | `{meal_id}` | Vision analysis; writes `meals` totals + `food_items` |
+| `generate-daily-insight` | `{date?}` | One insight; inserts into `ai_insights` |
+| `interpret-lab-values` | `{lab_value_id}` | Writes `lab_values.ai_interpretation` |
+| `stress-pattern-analysis` | `{days?}` | Patterns over 7–90 days; needs 5+ stress logs |
+| `wellness-recommendation` | `{question?}` | One focused recommendation |
+
+Call them through `lib/services/ai_service.dart`, which maps non-2xx responses
+to `AiException`. A 422 means "not enough data yet" rather than a real failure —
+check `isNotEnoughData` and prompt the user to log more instead of showing an
+error.
+
+### Required secret
+
+**Nothing works until this is set.** In the Supabase dashboard, Edge Functions →
+Secrets, add:
+
+```
+ANTHROPIC_API_KEY = sk-ant-...
+```
+
+Optionally `CLAUDE_MODEL` to override the default (`claude-sonnet-5`).
+
+The key lives only in Supabase. It must never go in `pubspec.yaml`, `main.dart`,
+or anywhere else in the Flutter app — anything shipped in the binary can be
+extracted from an installed APK or IPA.
+
+### How they stay safe
+
+Every function builds its Supabase client from the *caller's* JWT, not the
+service-role key, so row-level security still applies inside the function. User
+identity comes from the verified token, never from the request body — passing a
+different `user_id` in the payload achieves nothing. All five have `verify_jwt`
+enabled, so unauthenticated calls are rejected at the edge.
+
+### Redeploying after an edit
+
+```bash
+supabase functions deploy analyze-meal-photo --project-ref jaynfestjiidkfwbhbhw
+```
+
 ## Not built yet
 
-- Edge Functions for Claude: `analyze-meal-photo`, `generate-daily-insight`,
-  `interpret-lab-values`, `stress-pattern-analysis`, `wellness-recommendation`
 - Trends and AI insights screens (dashboard buttons are wired but inert)
-- Social feed, follows, challenges
+- Social feed, follows, challenges (schema and policies exist)
 - Wearable sync
+- Google sign-in
