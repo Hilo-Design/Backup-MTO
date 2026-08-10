@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -53,9 +53,19 @@ class SupabaseService {
   /// — a private bucket has no public URL. `meals.photo_url` stores this path.
   ///
   /// `meals.photo_url` is NOT NULL, so upload before inserting the row.
-  Future<String> uploadMealPhoto(String userId, File photo) async {
-    final path = '$userId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await client.storage.from('meal_photos').upload(path, photo);
+  Future<String> uploadMealPhoto(
+    String userId,
+    Uint8List bytes, {
+    String contentType = 'image/jpeg',
+  }) async {
+    final ext = contentType.split('/').last.replaceAll('jpeg', 'jpg');
+    final path = '$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+    await client.storage.from('meal_photos').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType),
+        );
     return path;
   }
 

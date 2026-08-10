@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +21,8 @@ enum _Stage { idle, uploading, analysing }
 
 class _MealLoggingScreenState extends ConsumerState<MealLoggingScreen> {
   final _notes = TextEditingController();
-  File? _photo;
+  Uint8List? _photo;
+  String _contentType = 'image/jpeg';
   String _mealType = 'lunch';
   _Stage _stage = _Stage.idle;
 
@@ -40,7 +41,14 @@ class _MealLoggingScreenState extends ConsumerState<MealLoggingScreen> {
       imageQuality: 85,
       maxWidth: 1600,
     );
-    if (picked != null) setState(() => _photo = File(picked.path));
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _photo = bytes;
+      _contentType = picked.mimeType ?? 'image/jpeg';
+    });
   }
 
   Future<void> _save() async {
@@ -55,7 +63,11 @@ class _MealLoggingScreenState extends ConsumerState<MealLoggingScreen> {
 
     String mealId;
     try {
-      final path = await service.uploadMealPhoto(widget.userId, photo);
+      final path = await service.uploadMealPhoto(
+        widget.userId,
+        photo,
+        contentType: _contentType,
+      );
       mealId = await service.saveMeal(widget.userId, {
         'meal_date': now.toIso8601String().split('T').first,
         'meal_time':
@@ -206,7 +218,7 @@ class _MealLoggingScreenState extends ConsumerState<MealLoggingScreen> {
                           ),
                         ],
                       )
-                    : Image.file(_photo!, fit: BoxFit.cover),
+                    : Image.memory(_photo!, fit: BoxFit.cover),
               ),
             ),
             const SizedBox(height: 12),
