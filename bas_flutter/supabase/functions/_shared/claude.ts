@@ -3,8 +3,14 @@ import { HttpError } from './http.ts';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const API_VERSION = '2023-06-01';
 
-/** Override with the CLAUDE_MODEL secret to move up or down a tier. */
-const DEFAULT_MODEL = 'claude-sonnet-5';
+/** Only these may be requested. Anything else falls back to the default. */
+const ALLOWED = new Set([
+  'claude-haiku-4-5',
+  'claude-sonnet-5',
+  'claude-opus-5',
+]);
+
+const DEFAULT_MODEL = 'claude-haiku-4-5';
 
 export type ContentBlock =
   | { type: 'text'; text: string }
@@ -16,13 +22,16 @@ export type ContentBlock =
 export interface ClaudeResult<T> {
   data: T;
   tokens: number;
-  /** Raw prose Claude produced alongside the tool call, if any. */
-  text: string;
+  model: string;
 }
 
 /**
  * Calls Claude and forces a single tool call, which is how we get JSON that
- * actually matches a schema instead of parsing prose and hoping.
+ * matches a schema instead of parsing prose and hoping.
+ *
+ * Model precedence: the per-user preference passed in, then the CLAUDE_MODEL
+ * secret, then the cheap default. The whitelist means a tampered client
+ * cannot make the account run an arbitrary or costlier model.
  */
 export async function askClaude<T>(opts: {
   system: string;
@@ -31,6 +40,7 @@ export async function askClaude<T>(opts: {
   toolDescription: string;
   schema: Record<string, unknown>;
   maxTokens?: number;
+  model?: string;
 }): Promise<ClaudeResult<T>> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) {
@@ -40,6 +50,9 @@ export async function askClaude<T>(opts: {
     );
   }
 
+  const requested = opts.model ?? Deno.env.get('CLAUDE_MODEL') ?? DEFAULT_MODEL;
+  const model = ALLOWED.has(requested) ? requested : DEFAULT_MODEL;
+
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: {
@@ -48,7 +61,7 @@ export async function askClaude<T>(opts: {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: Deno.env.get('CLAUDE_MODEL') ?? DEFAULT_MODEL,
+      model,
       max_tokens: opts.maxTokens ?? 2048,
       system: opts.system,
       tools: [{
@@ -63,10 +76,9 @@ export async function askClaude<T>(opts: {
 
   if (!res.ok) {
     const detail = await res.text();
-    // 429 and 529 are worth surfacing distinctly so the app can retry.
     throw new HttpError(
-      res.status === 429 || res.status === 529 ? res.status : 502,
-      `Claude API error (${res.status}): ${detail.slice(0, 500)}`,
+      res.status === 429 || res.status === 529 ? 503 : 502,
+      `Claude API error (${res.status}): ${detail.slice(0, 300)}`,
     );
   }
 
@@ -74,31 +86,19 @@ export async function askClaude<T>(opts: {
   const blocks = (payload.content ?? []) as Array<Record<string, unknown>>;
 
   const toolUse = blocks.find((b) => b.type === 'tool_use');
-  if (!toolUse) {
-    throw new HttpError(502, 'Claude returned no structured result');
-  }
-
-  const text = blocks
-    .filter((b) => b.type === 'text')
-    .map((b) => String(b.text ?? ''))
-    .join('\n')
-    .trim();
+  if (!toolUse) throw new HttpError(502, 'Claude returned no structured result');
 
   const usage = payload.usage ?? {};
   return {
     data: toolUse.input as T,
     tokens: (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0),
-    text,
+    model,
   };
 }
 
-/**
- * Shared guardrail. Bas is a wellness product, not a clinician, and the lab and
- * symptom features are the ones most likely to be read as medical advice.
- */
 export const SAFETY_PREAMBLE = `
 You are the coaching engine inside Bas, a wellness app for busy professionals
-aged roughly 30-45.
+aged roughly 30-45, primarily in India.
 
 Hard rules:
 - You are not a doctor and this is not medical advice or a diagnosis.
